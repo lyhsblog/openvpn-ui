@@ -1,12 +1,30 @@
 # armv5l raspberry pi 1/zero 32bit: FROM arm32v5/golang:1.20, armv7l raspberry pi 2/3/4 32bit: FROM arm32v7/golang:1.20
 # AMD64 64bit: golang:1.20, armv8l raspberry pi 3/4 64bit: FROM arm64v8/golang:1.20
-FROM DEFINE-YOUR-ARCH
+FROM golang:1.23.4-bookworm
 
 LABEL maintainer="Mr.Philipp <d3vilh@github.com>"
 
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
+ENV HTTP_PROXY=${HTTP_PROXY} \
+    HTTPS_PROXY=${HTTPS_PROXY} \
+    NO_PROXY=${NO_PROXY} \
+    http_proxy=${http_proxy} \
+    https_proxy=${https_proxy} \
+    no_proxy=${no_proxy}
+
 # Set the working directory to /beego and installing dependencies
 WORKDIR /beego
-RUN apt-get update && apt-get install git musl-tools -y
+RUN if [ -n "$http_proxy" ]; then \
+      echo "Acquire::http::Proxy \"$http_proxy\";" > /etc/apt/apt.conf.d/proxy.conf; \
+      echo "Acquire::https::Proxy \"$https_proxy\";" >> /etc/apt/apt.conf.d/proxy.conf; \
+    fi && \
+    apt-get update && apt-get install git musl-tools -y
 
 # Enable go modules
 ENV GO111MODULE=on

@@ -2,6 +2,38 @@
 # VERSION 1.3 by d3vilh@github.com aka Mr. Philipp. Thanks bugsyb@github.com for all the efforts ;)
 set -e  # Exit immediately if a command exits with a non-zero status. Set -x option for debugging
 
+# Optional proxy for docker build (copy .proxy.env.example to .proxy.env and edit)
+if [ -f .proxy.env ]; then
+  # shellcheck disable=SC1091
+  source .proxy.env
+fi
+
+HTTP_PROXY="${HTTP_PROXY:-${http_proxy:-}}"
+HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-${HTTP_PROXY}}}"
+NO_PROXY="${NO_PROXY:-${no_proxy:-localhost,127.0.0.1}}"
+
+PROXY_BUILD_ARGS=()
+PROXY_RUN_ENVS=()
+if [ -n "$HTTP_PROXY" ]; then
+  PROXY_BUILD_ARGS+=(
+    --build-arg "HTTP_PROXY=$HTTP_PROXY"
+    --build-arg "HTTPS_PROXY=$HTTPS_PROXY"
+    --build-arg "NO_PROXY=$NO_PROXY"
+    --build-arg "http_proxy=$HTTP_PROXY"
+    --build-arg "https_proxy=$HTTPS_PROXY"
+    --build-arg "no_proxy=$NO_PROXY"
+  )
+  PROXY_RUN_ENVS+=(
+    -e "HTTP_PROXY=$HTTP_PROXY"
+    -e "HTTPS_PROXY=$HTTPS_PROXY"
+    -e "NO_PROXY=$NO_PROXY"
+    -e "http_proxy=$HTTP_PROXY"
+    -e "https_proxy=$HTTPS_PROXY"
+    -e "no_proxy=$NO_PROXY"
+  )
+  printf "\033[1;33mUsing build proxy:\033[0m %s\n" "$HTTP_PROXY"
+fi
+
 # Define the machine architecture
 # PLATFORM="linux/amd64" # arm64v8 = "linux/arm64/v8", arm32v5 - "linux/arm/v5", arm32v7 - "linux/arm/v7", amd64 - "linux/amd64"
 ARCH=$(uname -m)
@@ -49,7 +81,7 @@ sed -i "s#FROM DEFINE-YOUR-ARCH#$BEEIMAGE#g" Dockerfile-beego
 printf "Dockerfiles updated \n\033[1;34mBuilding Golang and Bee enviroment.\033[0m\n"
 
 # Build golang & bee environment
-docker build --progress=plain --platform=$PLATFORM -f Dockerfile-beego -t local/beego-v8 -t local/beego-v8:latest .
+docker build --progress=plain --platform=$PLATFORM -f Dockerfile-beego "${PROXY_BUILD_ARGS[@]}" -t local/beego-v8 -t local/beego-v8:latest .
 printf "\033[1;34mBuilding OpenVPN-UI and qrencode binaries.\033[0m\n"
 
 # Run a beego-v8 container to build qrencode and execute bee pack
@@ -59,6 +91,7 @@ time docker run \
     -v "$PWD/../":/go/src/github.com/d3vilh/openvpn-ui \
     -e GO111MODULE='auto' \
     -e CGO_ENABLED=1 \
+    "${PROXY_RUN_ENVS[@]}" \
     --rm \
     -w /usr/src/myapp \
     local/beego-v8 \
@@ -80,7 +113,7 @@ cp -f ../$QRFILE ./
 cp -f ../$UIFILE ./
 
 # Build openvpn-ui image
-docker build -t local/openvpn-ui .
+docker build "${PROXY_BUILD_ARGS[@]}" -t local/openvpn-ui .
 rm -f $UIFILE; rm -f $(basename $UIFILE); #rm -f $QRFILE;
 printf "\033[1;34mAll done.\033[0m\n"
 

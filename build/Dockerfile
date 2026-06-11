@@ -3,7 +3,22 @@
 
 # LINE 33 is WA for current version of easy-rsa, it will be removed in future!! 
 
-FROM DEFINE-YOUR-ARCH
+FROM alpine
+
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
+ENV HTTP_PROXY=${HTTP_PROXY} \
+    HTTPS_PROXY=${HTTPS_PROXY} \
+    NO_PROXY=${NO_PROXY} \
+    http_proxy=${http_proxy} \
+    https_proxy=${https_proxy} \
+    no_proxy=${no_proxy}
+
 LABEL maintainer="Mr.Philipp <d3vilh@github.com>"
 LABEL version="0.9.5.6"
 WORKDIR /opt
